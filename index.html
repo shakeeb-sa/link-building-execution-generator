@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Link Building Execution Generator (Sorted)</title>
+    <!-- REPLACE the old script tag with this one -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <style>
+      :root {
+        --primary-color: #1f4e78;
+        --secondary-color: #2c3e50;
+        --bg-color: #f4f7f6;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-color);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .container {
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 600px;
+        max-width: 90%;
+      }
+      h1 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+      }
+      p {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 0.9em;
+      }
+      .order-list {
+        text-align: left;
+        background: #eef6fc;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 0.85em;
+        margin-bottom: 20px;
+        display: inline-block;
+        color: var(--secondary-color);
+      }
+      .order-list b {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .upload-box {
+        border: 2px dashed #ccc;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        transition: 0.3s;
+        position: relative;
+      }
+      .upload-box:hover {
+        border-color: var(--primary-color);
+        background-color: #f0f8ff;
+      }
+      input[type="file"] {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .btn {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+        display: none;
+      }
+      .btn:hover {
+        background-color: #163b5c;
+      }
+      .status {
+        margin-top: 15px;
+        font-weight: bold;
+        color: var(--secondary-color);
+      }
+      .icon {
+        font-size: 40px;
+        color: var(--primary-color);
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Link Execution Tool</h1>
+      <p>Generates the specific "Execution List" format sorted by priority.</p>
+
+      <div class="order-list">
+        <b>Sorting Priority:</b>
+        1. Guest Blogging &rarr; 2. Web 2.0 &rarr; 3. DA 50+ <br />
+        4. .Edu &rarr; 5. Business Profiles <br />
+        6. Targeted/Classifieds &rarr; 7. Community Discussion
+      </div>
+
+      <div class="upload-box">
+        <div class="icon">📂</div>
+        <span id="upload-text">Click or Drag Excel File Here</span>
+        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" />
+      </div>
+
+      <div class="status" id="statusMessage">Waiting for file...</div>
+      <br />
+      <button class="btn" id="downloadBtn">Download Sorted Template</button>
+    </div>
+
+    <script>
+      let workbookData = null;
+      let executionData = [];
+
+      const PRIORITY_ORDER = [
+        "guest blogging",
+        "web 2.0",
+        "web 2.o",
+        "da 50+",
+        ".edu",
+        "business profiles",
+        "targeted link building",
+        "classifieds marketing",
+        "classifieds",
+        "community discussion",
+      ];
+
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", handleFile, false);
+      document
+        .getElementById("downloadBtn")
+        .addEventListener("click", downloadFile);
+
+      function handleFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        document.getElementById("upload-text").innerText = file.name;
+        document.getElementById("statusMessage").innerText = "Processing...";
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {
+            type: "array",
+            cellStyles: true,
+            cellFormula: true,
+            cellNF: true,
+            sheetStubs: true,
+          });
+
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (rawData.length === 0) {
+            alert("The Excel file seems empty.");
+            return;
+          }
+          processPlan(rawData, workbook);
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function extractUrlDescriptions(workbook) {
+        const map = {};
+        workbook.SheetNames.forEach((sheetName) => {
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          for (let r = 0; r < rows.length - 1; r++) {
+            const row = rows[r];
+            if (!row) continue;
+            for (let c = 0; c < row.length; c++) {
+              const cellVal = String(row[c] || "").trim();
+              if (cellVal.toLowerCase().startsWith("http")) {
+                const nextRow = rows[r + 1];
+                if (nextRow) {
+                  const descVal = String(nextRow[c] || "").trim();
+                  if (descVal && !descVal.toLowerCase().startsWith("http")) {
+                    map[cellVal.toLowerCase()] = descVal;
+                  }
+                }
+              }
+            }
+          }
+        });
+        return map;
+      }
+
+      function toTitleCase(str) {
+        if (!str) return "";
+        return String(str)
+          .toLowerCase()
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+      }
+
+      // --- LOGIC 1: DA 50+, .Edu, Classifieds (Keyword Insertion) ---
+      function formatDescriptionWithLink(description, keyword, url) {
+        if (!description) return "";
+
+        const kwClean = String(keyword).trim();
+        const urlClean = String(url).trim();
+
+        const escapeRegExp = (string) =>
+          string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(escapeRegExp(kwClean), "gi");
+
+        // Scenario A: Keyword Exists -> Wrap it
+        if (regex.test(description)) {
+          return description.replace(
+            regex,
+            (match) => `<a href="${urlClean}">${match}</a>`
+          );
+        }
+        // Scenario B: Keyword NOT Found -> Insert with Pipe Separator
+        else {
+          const semiColonIndex = description.indexOf(";");
+          const linkHtml = ` |&nbsp;<a href="${urlClean}">${toTitleCase(
+            kwClean
+          )}</a>`;
+
+          if (semiColonIndex !== -1) {
+            const part1 = description.substring(0, semiColonIndex).trim();
+            const part2 = description.substring(semiColonIndex);
+            return `${part1}${linkHtml}${part2}`;
+          } else {
+            return `${description}${linkHtml}`;
+          }
+        }
+      }
+
+      // --- LOGIC 2: Community Discussion (Title Hyperlink) ---
+      function formatDescriptionForCommunity(description, url) {
+        if (!description) return "";
+        const urlClean = String(url).trim();
+        const semiColonIndex = description.indexOf(";");
+
+        if (semiColonIndex !== -1) {
+          // Everything BEFORE the semicolon is the Title -> Make it a Link
+          const title = description.substring(0, semiColonIndex).trim();
+          // Everything AFTER includes the semicolon and body -> Keep as text
+          const body = description.substring(semiColonIndex);
+
+          return `<a href="${urlClean}">${title}</a>${body}`;
+        } else {
+          // Fallback: If no semicolon, make the whole thing a link
+          return `<a href="${urlClean}">${description}</a>`;
+        }
+      }
+
+      function processPlan(data, originalWorkbook) {
+        let tempRows = [];
+        const urlDescMap = extractUrlDescriptions(originalWorkbook);
+
+        let headerRowIndex = -1;
+        let keywordColIndex = -1;
+        let urlColIndex = -1;
+
+        for (let r = 0; r < data.length; r++) {
+          const row = data[r];
+          for (let c = 0; c < row.length; c++) {
+            if (
+              row[c] &&
+              String(row[c]).toLowerCase().trim().includes("keyword")
+            ) {
+              headerRowIndex = r;
+              keywordColIndex = c;
+            }
+            if (row[c] && String(row[c]).toLowerCase().trim().includes("url")) {
+              urlColIndex = c;
+            }
+          }
+          if (headerRowIndex !== -1 && urlColIndex !== -1) break;
+        }
+
+        if (headerRowIndex === -1) {
+          document.getElementById("statusMessage").innerText =
+            "Error: 'Keyword' or 'URL' column not found.";
+          return;
+        }
+
+        const activityMap = {};
+        const headerRow = data[headerRowIndex];
+        const topRow = data[0];
+
+        for (let c = 0; c < headerRow.length; c++) {
+          if (c !== keywordColIndex && c !== urlColIndex) {
+            let activityName = (topRow[c] || headerRow[c] || "")
+              .toString()
+              .trim();
+            if (activityName && isNaN(activityName)) {
+              activityMap[c] = activityName;
+            }
+          }
+        }
+
+        for (let r = headerRowIndex + 1; r < data.length; r++) {
+          const row = data[r];
+          const keyword = row[keywordColIndex];
+          const url = row[urlColIndex];
+
+          if (!keyword) continue;
+
+          let rawDescription = url
+            ? urlDescMap[String(url).toLowerCase().trim()] || ""
+            : "";
+
+          for (let colIndex in activityMap) {
+            const count = parseInt(row[colIndex]);
+            const activityName = activityMap[colIndex];
+            const activityLower = String(activityName).toLowerCase().trim();
+
+            let finalDescription = rawDescription;
+
+            // Check Activity Type
+            const isKeywordInsertion =
+              activityLower.includes("da 50") ||
+              activityLower.includes(".edu") ||
+              activityLower.includes("classified") ||
+              activityLower.includes("targeted link");
+
+            const isCommunity = activityLower.includes("community");
+
+            // Apply Logic based on Activity
+            if (isKeywordInsertion) {
+              finalDescription = formatDescriptionWithLink(
+                rawDescription,
+                keyword,
+                url
+              );
+            } else if (isCommunity) {
+              finalDescription = formatDescriptionForCommunity(
+                rawDescription,
+                url
+              );
+            }
+
+            if (!isNaN(count) && count > 0) {
+              for (let i = 0; i < count; i++) {
+                tempRows.push({
+                  Activity: activityName,
+                  "Target URL (Reference)": url,
+                  Description: finalDescription,
+                  "Website (Backlink)": "",
+                  "Link Type": "Keyword",
+                  "Keyword Promoted": keyword,
+                  DA: "",
+                  PA: "",
+                  "Moz Rank": "",
+                  SS: "",
+                });
+              }
+            }
+          }
+        }
+
+        tempRows.sort((a, b) => {
+          const actA = a["Activity"].toLowerCase().trim();
+          const actB = b["Activity"].toLowerCase().trim();
+          let indexA = PRIORITY_ORDER.indexOf(actA);
+          let indexB = PRIORITY_ORDER.indexOf(actB);
+          if (indexA === -1) indexA = 999;
+          if (indexB === -1) indexB = 999;
+          return indexA - indexB;
+        });
+
+        executionData = tempRows.map((row, index) => {
+          return { "S.No": index + 1, ...row };
+        });
+
+        workbookData = originalWorkbook;
+
+        if (executionData.length === 0) {
+          document.getElementById("statusMessage").innerText =
+            "No rows generated.";
+          document.getElementById("statusMessage").style.color = "orange";
+        } else {
+          document.getElementById(
+            "statusMessage"
+          ).innerText = `Success! Generated ${executionData.length} sorted rows.`;
+          document.getElementById("statusMessage").style.color = "green";
+          document.getElementById("downloadBtn").style.display = "inline-block";
+        }
+      }
+
+      function downloadFile() {
+        const newWb = workbookData;
+
+        const formattedData = executionData.map((row) => {
+          return {
+            ...row,
+            "Keyword Promoted": toTitleCase(row["Keyword Promoted"]),
+          };
+        });
+
+        const executionWs = XLSX.utils.json_to_sheet(formattedData, {
+          origin: "A2",
+        });
+
+        executionWs["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }];
+
+        const wscols = [
+          { wch: 6 },
+          { wch: 25 },
+          { wch: 40 },
+          { wch: 45 },
+          { wch: 50 },
+          { wch: 15 },
+          { wch: 40 },
+          { wch: 5 },
+          { wch: 5 },
+          { wch: 10 },
+          { wch: 5 },
+        ];
+        executionWs["!cols"] = wscols;
+
+        const rowHeights = [];
+        rowHeights.push({ hpx: 123.75 });
+        rowHeights.push({ hpx: 35 });
+        for (let i = 0; i < formattedData.length; i++) {
+          rowHeights.push({ hpx: 35 });
+        }
+        executionWs["!rows"] = rowHeights;
+
+        const range = XLSX.utils.decode_range(executionWs["!ref"]);
+
+        for (let C = range.s.c; C <= range.e.c; C++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: 1, c: C });
+          if (!executionWs[cellAddress]) continue;
+          executionWs[cellAddress].s = {
+            fill: { fgColor: { rgb: "1F4E78" } },
+            font: { color: { rgb: "FFFFFF" }, bold: true, sz: 11 },
+            alignment: { vertical: "center", horizontal: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "FFFFFF" } },
+              bottom: { style: "thin", color: { rgb: "FFFFFF" } },
+              left: { style: "thin", color: { rgb: "FFFFFF" } },
+              right: { style: "thin", color: { rgb: "FFFFFF" } },
+            },
+          };
+        }
+
+        for (let R = 2; R <= range.e.r; R++) {
+          for (let C = range.s.c; C <= range.e.c; C++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!executionWs[cellAddress]) continue;
+            if (!executionWs[cellAddress].s) executionWs[cellAddress].s = {};
+
+            executionWs[cellAddress].s.alignment = { vertical: "center" };
+            executionWs[cellAddress].s.font = { sz: 11 };
+
+            if (C === 3) {
+              executionWs[cellAddress].s.alignment.wrapText = true;
+            }
+
+            if ([0, 1, 5, 6, 7, 8, 9, 10].includes(C)) {
+              executionWs[cellAddress].s.alignment.horizontal = "center";
+            } else {
+              executionWs[cellAddress].s.alignment.horizontal = "left";
+            }
+          }
+        }
+
+        if (newWb.Sheets["Execution List"]) {
+          newWb.Sheets["Execution List"] = executionWs;
+        } else {
+          XLSX.utils.book_append_sheet(newWb, executionWs, "Execution List");
+        }
+
+        XLSX.writeFile(newWb, "Link_Building_Execution_Plan.xlsx", {
+          cellStyles: true,
+        });
+      }
+    </script>
+  </body>
+</html>
