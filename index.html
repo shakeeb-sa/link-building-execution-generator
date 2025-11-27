@@ -342,12 +342,22 @@
             const isCommunity = activityLower.includes("community");
 
             // Apply Logic based on Activity
+                       // Apply Logic based on Activity
             if (isKeywordInsertion) {
+              // 1. Generate the Body (HTML Link)
               finalDescription = formatDescriptionWithLink(
                 rawDescription,
                 keyword,
                 url
               );
+
+              // 2. CLASSIFIEDS SPECIFIC: Append the Footer
+              if (activityLower.includes("classified")) {
+                // We use <br> because the cell contains HTML
+                const footer = `<br><br>Please visit our website: ${url}<br><br>Keywords: ${toTitleCase(keyword)}`;
+                finalDescription += footer;
+              }
+              
             } else if (isCommunity) {
               finalDescription = formatDescriptionForCommunity(
                 rawDescription,
