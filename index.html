@@ -235,41 +235,6 @@
             (match) => `<a href="${urlClean}">${match}</a>`
           );
         } else {
-          // Scenario B: Keyword NOT found -> Insert at start with Pipe
-          const semiColonIndex = description.indexOf(';');
-          const linkHtml = ` |&nbsp;<a href="${urlClean}">${toTitleCase(
-            kwClean
-          )}</a>`;
-
-          if (semiColonIndex !== -1) {
-            const part1 = description.substring(0, semiColonIndex).trim();
-            const part2 = description.substring(semiColonIndex);
-            return `${part1}${linkHtml}${part2}`;
-          } else {
-            return `${description}${linkHtml}`;
-          }
-        }
-      }
-
-      function formatDescriptionWithLink(description, keyword, url) {
-        if (!description) return "";
-        const kwClean = String(keyword).trim();
-        const urlClean = String(url).trim();
-
-        const escapeRegExp = (string) =>
-          string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-        // FIX: Removed 'g' flag. Now uses 'i' (Case insensitive, First match only).
-        // This prevents double-linking if the keyword appears in Title AND Body.
-        const regex = new RegExp(escapeRegExp(kwClean), "i");
-
-        if (regex.test(description)) {
-          // Scenario A: Keyword found -> Replace ONLY the first instance
-          return description.replace(
-            regex,
-            (match) => `<a href="${urlClean}">${match}</a>`
-          );
-        } else {
           // Scenario B: Keyword NOT found -> Insert at start with Pipe (WITHOUT &nbsp;)
           const semiColonIndex = description.indexOf(";");
           const linkHtml = ` | <a href="${urlClean}">${toTitleCase(
